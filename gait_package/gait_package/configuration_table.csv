@@ -1,0 +1,7 @@
+Head,Location,Motor1_Direction,Motor2_Direction,Motor3_Direction
+Duck,FrontLeftLeg,1,1,1
+Frog,MiddleLeftLeg,1,1,1
+Goat,BackLeftLeg,1,1,1
+Lion,FrontRightLeg,-1,1,1
+Pony,MiddleRightLeg,-1,1,1
+Swan,BackRightLeg,-1,1,1
