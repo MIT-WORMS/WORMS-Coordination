@@ -5,8 +5,14 @@ import os
 import pandas as pd
 
 def generate_launch_description():
-    command_path = "run_stand_forward_gait.csv"
-    command_filepath = os.path.expanduser(f'~/WORMS-testing/src/gait_package/gait_package/{command_path}')
+    WORKSPACE_NAME = "WORMS-software-ws"
+    REPO_NAME = "WORMS-coordination"
+    PACKAGE_NAME = "gait_package"
+
+    working_file_path = os.path.dirname(os.path.realpath(__file__))
+    end_index = working_file_path.find(WORKSPACE_NAME) + len(WORKSPACE_NAME)
+    script_directory = os.path.join(working_file_path[:end_index], "src", REPO_NAME, PACKAGE_NAME, PACKAGE_NAME)
+    command_filepath = os.path.join(script_directory, "run_stand_forward_gait.csv")
     df = pd.read_csv(command_filepath)
     all_worms = df.columns
 
@@ -19,4 +25,3 @@ def generate_launch_description():
                     name=worm+"_gait_manager",)
         all_nodes.append(node)
     return LaunchDescription(all_nodes)
-
