@@ -94,7 +94,7 @@ class JointCommandPublisher(Node):
         - "Ready": the worm is ready: worm believes every other worm has the same view of the system
             and that system is valid
         - "Active": the worm is active and requesting/publishing movement commands: all worms are
-            constantly communicating that they are ready
+            constantly communicating that they are ready/active
 
         Communication with low level controllers:
         Publishes to 'joint_commands' and 'coordination_topic' topics.
@@ -156,6 +156,8 @@ class JointCommandPublisher(Node):
         self.readiness = {}
         self.message_delay = {}
         self.message_delay_threshold = 13 # change this to not be hard coded
+        self.config_time_step = 0.5
+        self.testing_time = time.time()
 
         self.num_motors = len(self.configuration)
         self.position_index = 0
@@ -163,7 +165,7 @@ class JointCommandPublisher(Node):
 
         self.execute_timer_callback = False
         self.timer = self.create_timer(0.02, self.timer_callback)
-        self.config_timer = self.create_timer(0.5, self.config_callback)
+        self.config_timer = self.create_timer(self.config_time_step, self.config_callback)
         
     def get_waypoints(self, action):
         """
@@ -227,13 +229,7 @@ class JointCommandPublisher(Node):
 
             for i in self.readiness:
                 if msg.sender == i:
-                    self.message_delay[i] = 0
-                else:
-                    if i in self.message_delay:
-                        self.message_delay[i] += 1
-                    else:
-                        self.message_delay[i] = 1
-
+                    self.message_delay[i] = time.time()
 
     def all_systems_valid(self):
         """
@@ -339,19 +335,10 @@ class JointCommandPublisher(Node):
         self.personal_publisher.publish(self.personal_view)
         self.system_publisher.publish(self.system_view)
 
-        
-        
         if not self.all_systems_valid():
             self.state = "Idle"
         elif self.state == "Idle":
             self.state = "Ready"
-
-        msg = Readiness()
-        msg.sender = self.worm_id
-
-        msg.status = self.state
-
-        self.readiness_publisher.publish(msg)
 
         # logic to check for if a worm has died
         all_worms_ready = True
@@ -359,20 +346,27 @@ class JointCommandPublisher(Node):
             if not self.readiness[worm]:
                 all_worms_ready = False
         for worm, value in self.message_delay.items():
-            if value >= self.message_delay_threshold:
+            if time.time() - value >= 2 * self.config_time_step:
                 for i, personal in enumerate(self.system_view.system_config):
                     if personal.name == worm:
                         del self.system_view.system_config[i]
+                        self.state = "Idle"
                         break
                 all_worms_ready = False
         if set([i for i in self.readiness.keys()]) != (set([i for i in self.all_system_views.keys()])-set([self.worm_id])):
             all_worms_ready = False
 
-        if all_worms_ready:
+        if all_worms_ready and self.state in ["Ready", "Active"]:
             self.state = "Active"
         # if self.state is Active but not all worms are ready, move down to Ready
         elif self.state == "Active":
             self.state = "Ready"
+
+        msg = Readiness()
+        msg.sender = self.worm_id
+        msg.status = self.state
+
+        self.readiness_publisher.publish(msg)
         
         self.get_logger().info(f"{self.state}")
     
