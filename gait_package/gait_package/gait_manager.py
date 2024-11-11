@@ -9,6 +9,7 @@ import subprocess
 import platform
 import os
 import time
+import sys
 
 from messages.msg import Personal
 from messages.msg import System
@@ -81,33 +82,39 @@ class JointCommandPublisher(Node):
         """
         Creates 'gait_manager' Node.
 
+        Communication between worms:
+        Publishes and subscribes to 'personal_communication_topic', 'system_communication_topic',
+        and 'readiness_communication_topic'. All worms use these topics to communicate with each other.
+
+        Each worm is a state machine.
+        - "Idle": the worm is not ready: worms do not agree on entire system configuration or config
+            is not valid
+        - "Ready": the worm is ready: worm believes every other worm has the same view of the system
+            and that system is valid
+        - "Active": the worm is active and requesting/publishing movement commands: all worms are
+            constantly communicating that they are ready
+
+        Communication with low level controllers:
         Publishes to 'joint_commands' and 'coordination_topic' topics.
         Subscribes to 'joint_states' (joint_state_callback), 'action_topic'
-        (action_callback).
-
-        Creates and publishes interpolated waypoints for predefined movement.
-
-        worm_id argument is purely for testing
+        (action_callback). Each worm publishes to topics that move JointState commands downstream.
         """
-        # mac_address = get_mac_address()
-        # Construct the path to the CSV file for worm info
-        # worm_id_path = os.path.expanduser('~/WORMS-software/src/worms_mech/worms_mech/database.csv')
-        # Construct the path to the CSV file that holds specialization data
-        self.configuration_path = os.path.expanduser('~/WORMS-testing/src/gait_package/gait_package/configuration_table.csv')
-
-        # worm_id = find_robot_name(mac_address, worm_id_path)
-
         super().__init__("blank")
-        # self.declare_parameter('worm_id', 'testing')
-        # worm_id = self.get_parameter("worm_id").get_parameter_value().string_value
-        worm_id = self.get_name().split("_")[0]
-        # self.get_logger().info(f"got worm id, {worm_id}")
-        # super().__init__(f'{worm_id}_gait_manager')
-        # self.get_logger().info("initialized node")
-        # self.configuration = find_configuration(worm_id, configuration_path)
 
-        self.configuration = find_configuration(worm_id, self.configuration_path)
-        self.location = find_location(worm_id, self.configuration_path)
+        WORKSPACE_NAME = "WORMS-software-ws"
+        REPO_NAME = "WORMS-coordination"
+        PACKAGE_NAME = "gait_package"
+
+        working_file_path = os.path.dirname(os.path.realpath(__file__))
+        end_index = working_file_path.find(WORKSPACE_NAME) + len(WORKSPACE_NAME)
+        self.script_directory = os.path.join(working_file_path[:end_index], "src", REPO_NAME, PACKAGE_NAME, PACKAGE_NAME)
+
+        self.configuration_path = os.path.join(self.script_directory, "configuration_table.csv")
+
+        self.worm_id = self.get_name().split("_")[0]
+
+        self.location = find_location(self.worm_id, self.configuration_path)
+        self.configuration = find_configuration(self.worm_id, self.configuration_path)
 
         """
         These variables define the direction of the motors that are specific to the current gait assembled
@@ -120,12 +127,11 @@ class JointCommandPublisher(Node):
         The Effect of the -1 on the Right side is to flip the direction of the head motor when executing 
         the same step command
         """
-        self.worm_id = worm_id
 
-        joint_commands_topic = f'{worm_id}_joint_commands'
-        joint_states_topic = f'{worm_id}_joint_states'
-        coordination_topic = f'{worm_id}_coordination_topic'
-        action_topic = f'{worm_id}_action_topic'
+        joint_commands_topic = f'{self.worm_id}_joint_commands'
+        joint_states_topic = f'{self.worm_id}_joint_states'
+        coordination_topic = f'{self.worm_id}_coordination_topic'
+        action_topic = f'{self.worm_id}_action_topic'
 
         self.command_publisher = self.create_publisher(JointState, joint_commands_topic, 10)
         self.coordination_publisher = self.create_publisher(String, coordination_topic, 10)
@@ -140,10 +146,9 @@ class JointCommandPublisher(Node):
         self.readiness_publisher = self.create_publisher(Readiness, 'readiness_communication_topic', 10)
         self.readiness_subscriber = self.create_subscription(Readiness, 'readiness_communication_topic', self.readiness_communication_callback, 10)
 
-        self.execute_timer_callback = False
         self.state = "Idle"
         self.system_view = System()
-        self.system_view.sender = worm_id
+        self.system_view.sender = self.worm_id
         self.all_system_views = {}
 
         self.readiness = {}
@@ -154,6 +159,7 @@ class JointCommandPublisher(Node):
         self.position_index = 0
         self.current_position = [0 for _ in range(self.num_motors)]
 
+        self.execute_timer_callback = False
         self.timer = self.create_timer(0.02, self.timer_callback)
         self.config_timer = self.create_timer(0.5, self.config_callback)
         
@@ -161,13 +167,20 @@ class JointCommandPublisher(Node):
         """
         Returns waypoints from csv file given some action.
         """
-        # waypoints_path = os.path.expanduser(f'~/WORMS-software/src/worms_mech/worms_mech/gait_data/{action}.csv')
-        waypoints_path = os.path.expanduser(f'~/WORMS-testing/src/gait_package/gait_package/gait_data/{action}.csv')
+        waypoints_path = os.path.join(self.script_directory, "gait_data", f"{action}.csv")
 
         df = pd.read_csv(waypoints_path)
         return [list(i) for i in df.values]
     
     def set_personal_view(self, name, location, configuration):
+        """
+        Generates view of self using Personal custom data type.
+        
+        Args:
+        - name: (str) own name, typically self.worm_id
+        - location: (str) location on robot i.e. RightLeftLeg
+        - configuration: (list of ints) multipliers for joints
+        """
         self.personal_view = Personal()
         self.personal_view.name = name
         self.personal_view.location = location
@@ -175,7 +188,7 @@ class JointCommandPublisher(Node):
     
     def personal_communication_callback(self, msg):
         """
-        Receives Personal message and updates view of system
+        Receives Personal message and updates view of system.
 
         Args:
         - msg (Personal): message
@@ -186,13 +199,14 @@ class JointCommandPublisher(Node):
                 if self.system_view.system_config[i].name == msg.name:
                     self.system_view.system_config[i] = msg
                     not_seen_yet = False
+                    break
             if not_seen_yet:
                 self.system_view.system_config.append(msg)
 
 
     def system_communication_callback(self, msg):
         """
-        Receives System message and updates view of system
+        Receives System message and updates view of system.
 
         Args:
         - msg (System): message
@@ -207,7 +221,7 @@ class JointCommandPublisher(Node):
         - msg (Readiness): message
         """
         if msg.sender != self.worm_id:
-            self.readiness[msg.sender] = msg.status == "Ready"
+            self.readiness[msg.sender] = msg.status in ["Ready", "Active"]
 
             for i in self.readiness:
                 if msg.sender == i:
@@ -221,10 +235,12 @@ class JointCommandPublisher(Node):
 
     def all_systems_valid(self):
         """
-        First checks if all systems are present equal. Then checks if system is valid.
+        First checks if all systems present are equal. Then checks if system is valid.
         """
         for system in self.all_system_views.values():
+            # comparing each system in all_system_views to self.system_view
             for personal in system.system_config:
+                # there must be one and only copy
                 copy_exists = False
                 one_copy = False
                 for p in self.system_view.system_config:
@@ -315,13 +331,13 @@ class JointCommandPublisher(Node):
         if not in_system_view:
             self.system_view.system_config.append(self.personal_view)
 
-        # update system_view in personal_view
+        # update system_view in all_system_views
         self.all_system_views[self.worm_id] = self.system_view
 
         self.personal_publisher.publish(self.personal_view)
         self.system_publisher.publish(self.system_view)
 
-        # need to figure out how to tell when a worm is killed
+        
         
         if not self.all_systems_valid():
             self.state = "Idle"
@@ -331,28 +347,29 @@ class JointCommandPublisher(Node):
         msg = Readiness()
         msg.sender = self.worm_id
 
-        if self.state != "Idle":
-            msg.status = "Ready"
-        else:
-            msg.status = "Not Ready"
+        msg.status = self.state
 
         self.readiness_publisher.publish(msg)
 
+        # logic to check for if a worm has died
         all_worms_ready = True
-        for i in self.readiness:
-            if not self.readiness[i]:
+        for worm in self.readiness:
+            if not self.readiness[worm]:
                 all_worms_ready = False
-        for i in self.message_delay.values():
-            if i >= self.message_delay_threshold:
-                if i in self.system_view.system_config:
-                    del self.system_view.system_config[i]
+        for worm, value in self.message_delay.items():
+            if value >= self.message_delay_threshold:
+                for i, personal in enumerate(self.system_view.system_config):
+                    if personal.name == worm:
+                        del self.system_view.system_config[i]
+                        break
                 all_worms_ready = False
         if set([i for i in self.readiness.keys()]) != (set([i for i in self.all_system_views.keys()])-set([self.worm_id])):
             all_worms_ready = False
 
         if all_worms_ready:
             self.state = "Active"
-        else:
+        # if self.state is Active but not all worms are ready, move down to Ready
+        elif self.state == "Active":
             self.state = "Ready"
         
         self.get_logger().info(f"{self.state}")
