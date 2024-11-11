@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState, Joy
 from std_msgs.msg import String
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.context import Context
 import numpy as np
 import pandas as pd
 import subprocess
@@ -10,6 +11,7 @@ import platform
 import os
 import time
 import sys
+import signal
 
 from messages.msg import Personal
 from messages.msg import System
@@ -434,37 +436,20 @@ class JointCommandPublisher(Node):
         self.action = msg.data
         self.execute_timer_callback = True
 
+def shutdown_nodes(signal, frame):
+    rclpy.shutdown()
+    sys.exit(0)
+
 def main(args=None):
     """
     Initializes ROS, creates 'gait_manager' node.
     """
     rclpy.init(args=args)
 
-    # command_path = "run_stand_forward_gait.csv"
-    # command_filepath = os.path.expanduser(f'~/WORMS-testing/src/gait_package/gait_package/{command_path}')
-    # df = pd.read_csv(command_filepath)
-    # all_worms = df.columns
-
-    # executor = MultiThreadedExecutor()
-
-    # for worm in all_worms:
-    #     executor.add_node(JointCommandPublisher(worm))
-
-    # # executor.set_number_of_threads(8)
-
-    # try:
-    #     executor.spin()
-    # except KeyboardInterrupt:
-    #     pass
-    
-    # executor.shutdown()
-    # for i in executor.get_nodes():
-    #     i.destroy_node()
-    # executor.shutdown()
-    # rclpy.shutdown()
-
-    # rclpy.init(args=args)
     node = JointCommandPublisher()
+
+    signal.signal(signal.SIGINT, shutdown_nodes)
+
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
