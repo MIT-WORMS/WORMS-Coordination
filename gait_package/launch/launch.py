@@ -20,7 +20,6 @@ def generate_launch_description():
 
     for worm in all_worms:
         node = Node(package="gait_package",
-                    namespace="gait",
                     executable="gait_manager",
                     name=worm+"_gait_manager",)
         all_nodes.append(node)
