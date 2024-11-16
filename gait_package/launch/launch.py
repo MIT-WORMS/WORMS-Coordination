@@ -1,6 +1,5 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-# from launch.substitutions import PopenCommand
 import os
 import pandas as pd
 
