@@ -156,7 +156,7 @@ class JointCommandPublisher(Node):
         self.readiness = {}
         self.message_delay = {}
         self.message_delay_threshold = 13 # change this to not be hard coded
-        self.config_time_step = 0.5
+        self.config_time_step = 0.1
         self.testing_time = time.time()
 
         self.num_motors = len(self.configuration)
@@ -368,7 +368,7 @@ class JointCommandPublisher(Node):
 
         self.readiness_publisher.publish(msg)
         
-        self.get_logger().info(f"{self.state}")
+        # self.get_logger().info(f"{self.state}")
     
     def timer_callback(self):
         """
