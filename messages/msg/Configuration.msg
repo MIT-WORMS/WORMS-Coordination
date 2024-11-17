@@ -1,0 +1,2 @@
+messages/Personal personal
+bool is_active

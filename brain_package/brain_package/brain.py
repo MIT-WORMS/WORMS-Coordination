@@ -13,9 +13,7 @@ import time
 import sys
 import signal
 
-from messages.msg import Personal
-from messages.msg import System
-from messages.msg import Readiness
+from messages.msg import Personal, Configuration, State, System, Readiness, Command
 
 def get_mac_address():
     """Returns MAC address of wlan0 network interface."""
@@ -105,7 +103,7 @@ class JointCommandPublisher(Node):
 
         WORKSPACE_NAME = "WORMS-software-ws"
         REPO_NAME = "WORMS-coordination"
-        PACKAGE_NAME = "gait_package"
+        PACKAGE_NAME = "brain_package"
 
         working_file_path = os.path.dirname(os.path.realpath(__file__))
         end_index = working_file_path.find(WORKSPACE_NAME) + len(WORKSPACE_NAME)
@@ -113,10 +111,12 @@ class JointCommandPublisher(Node):
 
         self.configuration_path = os.path.join(self.script_directory, "configuration_table.csv")
 
-        self.worm_id = self.get_name().split("_")[0]
+        self.worm_id = self.get_namespace()[1:]
+        self.get_logger().info(f"{self.worm_id}")
 
         self.location = find_location(self.worm_id, self.configuration_path)
-        self.configuration = find_configuration(self.worm_id, self.configuration_path)
+        # self.configuration = find_configuration(self.worm_id, self.configuration_path)
+        # not a task that should be done by brain
 
         """
         These variables define the direction of the motors that are specific to the current gait assembled
@@ -130,10 +130,10 @@ class JointCommandPublisher(Node):
         the same step command
         """
 
-        joint_commands_topic = f'{self.worm_id}_joint_commands'
-        joint_states_topic = f'{self.worm_id}_joint_states'
-        coordination_topic = f'{self.worm_id}_coordination_topic'
-        action_topic = f'{self.worm_id}_action_topic'
+        joint_commands_topic = f'joint_commands'
+        joint_states_topic = f'joint_states'
+        coordination_topic = f'coordination_topic'
+        action_topic = f'action_topic'
 
         self.command_publisher = self.create_publisher(JointState, joint_commands_topic, 10)
         self.coordination_publisher = self.create_publisher(String, coordination_topic, 10)
@@ -159,9 +159,11 @@ class JointCommandPublisher(Node):
         self.config_time_step = 0.1
         self.testing_time = time.time()
 
-        self.num_motors = len(self.configuration)
+        # self.num_motors = len(self.configuration)
+
+
         self.position_index = 0
-        self.current_position = [0 for _ in range(self.num_motors)]
+        self.current_position = JointState()
 
         self.execute_timer_callback = False
         self.timer = self.create_timer(0.02, self.timer_callback)
@@ -176,7 +178,7 @@ class JointCommandPublisher(Node):
         df = pd.read_csv(waypoints_path)
         return [list(i) for i in df.values]
     
-    def set_personal_view(self, name, location, configuration):
+    def set_personal_view(self, name, location):
         """
         Generates view of self using Personal custom data type.
         
@@ -188,7 +190,6 @@ class JointCommandPublisher(Node):
         self.personal_view = Personal()
         self.personal_view.name = name
         self.personal_view.location = location
-        self.personal_view.configuration = configuration
     
     def personal_communication_callback(self, msg):
         """
@@ -242,7 +243,7 @@ class JointCommandPublisher(Node):
                 copy_exists = False
                 one_copy = False
                 for p in self.system_view.system_config:
-                    if p.name == personal.name and p.location == personal.location and p.configuration == personal.configuration:
+                    if p.name == personal.name and p.location == personal.location:
                         if not one_copy:
                             copy_exists = True
                             one_copy = True
@@ -315,10 +316,10 @@ class JointCommandPublisher(Node):
         return transition_steps
 
     def config_callback(self):
-        self.configuration = find_configuration(self.worm_id, self.configuration_path)
+        # self.configuration = find_configuration(self.worm_id, self.configuration_path)
         self.location = find_location(self.worm_id, self.configuration_path)
 
-        self.set_personal_view(self.worm_id, self.location, self.configuration)
+        self.set_personal_view(self.worm_id, self.location)
 
         # update personal view in system_view
         in_system_view = False
@@ -368,7 +369,7 @@ class JointCommandPublisher(Node):
 
         self.readiness_publisher.publish(msg)
         
-        # self.get_logger().info(f"{self.state}")
+        self.get_logger().info(f"{self.state}")
     
     def timer_callback(self):
         """

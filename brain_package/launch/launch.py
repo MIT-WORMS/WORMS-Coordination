@@ -6,7 +6,7 @@ import pandas as pd
 def generate_launch_description():
     WORKSPACE_NAME = "WORMS-software-ws"
     REPO_NAME = "WORMS-coordination"
-    PACKAGE_NAME = "gait_package"
+    PACKAGE_NAME = "brain_package"
 
     working_file_path = os.path.dirname(os.path.realpath(__file__))
     end_index = working_file_path.find(WORKSPACE_NAME) + len(WORKSPACE_NAME)
@@ -18,8 +18,14 @@ def generate_launch_description():
     all_nodes = []
 
     for worm in all_worms:
-        node = Node(package="gait_package",
-                    executable="gait_manager",
-                    name=worm+"_gait_manager",)
+        node = Node(package=PACKAGE_NAME,
+                    executable="brain",
+                    namespace=worm,
+                    name='brain',
+                    remappings=[
+                        (f'/{worm}/personal_communication_topic', '/personal_communication_topic'),
+                        (f'/{worm}/system_communication_topic', '/system_communication_topic'),
+                        (f'/{worm}/readiness_communication_topic', '/readiness_communication_topic')
+                    ])
         all_nodes.append(node)
     return LaunchDescription(all_nodes)

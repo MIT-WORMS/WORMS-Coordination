@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -25,7 +26,14 @@ endif()
 
 find_package(rosidl_default_generators REQUIRED)
 
-rosidl_generate_interfaces(${PROJECT_NAME}_srv "msg/Personal.msg" "msg/System.msg" "msg/Readiness.msg" LIBRARY_NAME ${PROJECT_NAME})
+rosidl_generate_interfaces(${PROJECT_NAME}_srv 
+  "msg/Personal.msg" 
+  "msg/System.msg" 
+  "msg/Readiness.msg" 
+  "msg/Configuration.msg"
+  "msg/State.msg"
+  "msg/Command.msg"
+  LIBRARY_NAME ${PROJECT_NAME} DEPENDENCIES sensor_msgs)
 
 ament_package()
 

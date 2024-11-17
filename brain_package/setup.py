@@ -1,8 +1,9 @@
-from setuptools import find_packages, setup
 import os
 from glob import glob
 
-package_name = 'gait_package'
+from setuptools import find_packages, setup
+
+package_name = 'brain_package'
 
 setup(
     name=package_name,
@@ -23,9 +24,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'action_node = gait_package.action_node:main',
-            'gait_manager = gait_package.gait_manager:main',
-            'testing = gait_package.testing:main'
+            'action_node = brain_package.action_node:main',
+            'brain = brain_package.brain:main',
+            'testing = brain_package.testing:main'
         ],
     },
 )
