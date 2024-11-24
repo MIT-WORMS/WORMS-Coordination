@@ -33,6 +33,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}_srv
   "msg/Configuration.msg"
   "msg/State.msg"
   "msg/Command.msg"
+  "msg/StateCommunication.msg"
   LIBRARY_NAME ${PROJECT_NAME} DEPENDENCIES sensor_msgs)
 
 ament_package()

@@ -13,7 +13,7 @@ import time
 import sys
 import signal
 
-from messages.msg import Personal, Configuration, State, System, Readiness, Command
+from messages.msg import Personal, Configuration, State, System, Readiness, Command, StateCommunication
 
 def get_mac_address():
     """Returns MAC address of wlan0 network interface."""
@@ -76,7 +76,7 @@ def find_configuration(head, spreadsheet_path):
     else:
         return None
 
-class JointCommandPublisher(Node):
+class Brain(Node):
 
     def __init__(self):
         """
@@ -99,7 +99,7 @@ class JointCommandPublisher(Node):
         Subscribes to 'joint_states' (joint_state_callback), 'action_topic'
         (action_callback). Each worm publishes to topics that move JointState commands downstream.
         """
-        super().__init__("blank")
+        super().__init__("Brain")
 
         WORKSPACE_NAME = "WORMS-software-ws"
         REPO_NAME = "WORMS-coordination"
@@ -112,7 +112,6 @@ class JointCommandPublisher(Node):
         self.configuration_path = os.path.join(self.script_directory, "configuration_table.csv")
 
         self.worm_id = self.get_namespace()[1:]
-        self.get_logger().info(f"{self.worm_id}")
 
         self.location = find_location(self.worm_id, self.configuration_path)
         # self.configuration = find_configuration(self.worm_id, self.configuration_path)
@@ -135,10 +134,25 @@ class JointCommandPublisher(Node):
         coordination_topic = f'coordination_topic'
         action_topic = f'action_topic'
 
-        self.command_publisher = self.create_publisher(JointState, joint_commands_topic, 10)
-        self.coordination_publisher = self.create_publisher(String, coordination_topic, 10)
-        self.state_subscriber = self.create_subscription(JointState, joint_states_topic, self.joint_state_callback, 10)
-        self.action_subscriber = self.create_subscription(String, action_topic, self.action_callback, 10)
+        # interacting downstream
+        # self.command_publisher = self.create_publisher(JointState, joint_commands_topic, 10)
+        # self.coordination_publisher = self.create_publisher(String, coordination_topic, 10)
+        # self.state_subscriber = self.create_subscription(JointState, joint_states_topic, self.joint_state_callback, 10)
+        # self.action_subscriber = self.create_subscription(String, action_topic, self.action_callback, 10)
+
+        self.joint_state_subscriber = self.create_subscription(JointState, "joint_states_topic", self.joint_state_callback, 10)
+        
+        self.gait_manager_time_step = 0.1
+        self.gait_manager_timer = self.create_timer(self.gait_manager_time_step, self.gait_manager_timer_callback)
+        self.state_publisher = self.create_publisher(State, "state_topic", 10)
+        self.config_publisher = self.create_publisher(Configuration, "config_topic", 10)
+        self.cmd_publisher = self.create_publisher(Command, "cmd_topic", 10)
+
+        # interacting upstream/with other worms
+        self.mission_control_subscriber = self.create_subscription(Command, 'mission_control_command_topic', self.mission_control_callback, 10)
+        self.joint_state_publisher = self.create_publisher(StateCommunication, "state_communication_topic", 10)
+        self.state_communication_subscriber = self.create_subscription(StateCommunication, "state_communication_topic", self.state_communication_callback, 10)
+
 
         self.personal_publisher = self.create_publisher(Personal, 'personal_communication_topic', 10)
         self.system_publisher = self.create_publisher(System, 'system_communication_topic', 10)
@@ -152,6 +166,12 @@ class JointCommandPublisher(Node):
         self.system_view = System()
         self.system_view.sender = self.worm_id
         self.all_system_views = {}
+        self.command = None
+
+        self.state_dict = {}
+        self.state_delay_dict = {}
+        self.state_dict_initialized = False
+        self.publish_config = False
 
         self.readiness = {}
         self.message_delay = {}
@@ -161,14 +181,71 @@ class JointCommandPublisher(Node):
 
         # self.num_motors = len(self.configuration)
 
-
         self.position_index = 0
         self.current_position = JointState()
 
         self.execute_timer_callback = False
-        self.timer = self.create_timer(0.02, self.timer_callback)
+        # self.timer = self.create_timer(0.02, self.timer_callback)
         self.config_timer = self.create_timer(self.config_time_step, self.config_callback)
         
+    def joint_state_callback(self, msg):
+        """
+        Receives JointState message from low-level controller, updates state_dict and forwards msg.
+        """
+        self.state_dict[self.worm_id] = msg
+        outgoing_message = StateCommunication()
+        outgoing_message.sender = self.worm_id
+        outgoing_message.state = msg
+
+        self.state_delay_dict[self.worm_id] = time.time()
+
+        self.joint_state_publisher.publish(outgoing_message)
+
+    def state_communication_callback(self, msg):
+        """
+        Receives state from other worm brains and updates self.state_dict
+        """
+        if msg.sender != self.worm_id:
+            self.state_dict[msg.sender] = msg.state
+            self.state_delay_dict[msg.sender] = time.time()
+
+    def gait_manager_timer_callback(self):
+        """
+        Publishes all relevant information to gait_manager Node.
+        """
+        # state_delay_dict = list(self.state_delay_dict.items())
+        # for i, t in state_delay_dict:
+        #     if time.time()-t > 3*self.gait_manager_time_step:
+        #         if self.state_dict_initialized:
+        #             del self.state_dict[i]
+        #             del self.state_delay_dict[i]
+
+        state_msg = State()
+        state_msg.worms = []
+        state_msg.positions = []
+        for worm, pos in self.state_dict.items():
+            state_msg.worms.append(worm)
+            state_msg.positions.append(pos)
+        self.state_publisher.publish(state_msg)
+
+        # this needs to be changed
+        if len(self.state_dict) == 6:
+            self.state_dict_initialized = True
+
+        if self.publish_config:
+            config_msg = Configuration()
+            config_msg.personal = self.personal_view
+            config_msg.is_active = self.state == "Active"
+            self.config_publisher.publish(config_msg)
+
+        if self.command is not None:
+            self.cmd_publisher.publish(self.command)
+
+    def mission_control_callback(self, msg):
+        """Saves command from mission control."""
+        self.command = msg
+
+
     def get_waypoints(self, action):
         """
         Returns waypoints from csv file given some action.
@@ -190,6 +267,7 @@ class JointCommandPublisher(Node):
         self.personal_view = Personal()
         self.personal_view.name = name
         self.personal_view.location = location
+        self.publish_config = True
     
     def personal_communication_callback(self, msg):
         """
@@ -207,7 +285,6 @@ class JointCommandPublisher(Node):
                     break
             if not_seen_yet:
                 self.system_view.system_config.append(msg)
-
 
     def system_communication_callback(self, msg):
         """
@@ -262,22 +339,22 @@ class JointCommandPublisher(Node):
             return True
         return False
 
-    def joint_state_callback(self, msg):
-        """
-        Updates self.current_pose and self.current_position based on received message. Logs new position.
+    # def joint_state_callback(self, msg):
+    #     """
+    #     Updates self.current_pose and self.current_position based on received message. Logs new position.
 
-        Args:
-        - msg: message received from f'/{worm_id}_joint_states' topic
-        """
+    #     Args:
+    #     - msg: message received from f'/{worm_id}_joint_states' topic
+    #     """
         
-        print("Updating Joint State")
-        # Update the first waypoint with the current position
-        self.current_pose = msg
+    #     print("Updating Joint State")
+    #     # Update the first waypoint with the current position
+    #     self.current_pose = msg
 
-        if hasattr(self, 'current_pose') and self.current_pose is not None:
-            position_str = ', '.join([f"{p:.2f}" for p in self.current_pose.position])
-            self.get_logger().info(f'Current Position at: [{position_str}]')
-            self.current_position = self.current_pose.position
+    #     if hasattr(self, 'current_pose') and self.current_pose is not None:
+    #         position_str = ', '.join([f"{p:.2f}" for p in self.current_pose.position])
+    #         self.get_logger().info(f'Current Position at: [{position_str}]')
+    #         self.current_position = self.current_pose.position
 
     def interpolate_waypoints(self, arrays, increment=0.3):
         """
@@ -369,7 +446,7 @@ class JointCommandPublisher(Node):
 
         self.readiness_publisher.publish(msg)
         
-        self.get_logger().info(f"{self.state}")
+        # self.get_logger().info(f"{self.state}")
     
     def timer_callback(self):
         """
@@ -418,18 +495,20 @@ class JointCommandPublisher(Node):
 
             self.coordination_publisher.publish(msg)
 
-    def action_callback(self, msg):
-        """
-        Defines self.interpolated_positions and self.action. Sets self.execute_timer_callback to True
+    # def action_callback(self, msg):
+    #     """
+    #     Defines self.interpolated_positions and self.action. Sets self.execute_timer_callback to True
 
-        Args:
-        - msg: message from action_topic
-        """
+    #     Args:
+    #     - msg: message from action_topic
+    #     """
 
-        waypoints = self.get_waypoints(msg.data)
-        self.interpolated_positions = self.interpolate_waypoints(waypoints)
-        self.action = msg.data
-        self.execute_timer_callback = True
+    #     waypoints = self.get_waypoints(msg.data)
+    #     self.interpolated_positions = self.interpolate_waypoints(waypoints)
+    #     self.action = msg.data
+    #     self.execute_timer_callback = True
+
+
 
 def shutdown_nodes(signal, frame):
     rclpy.shutdown()
@@ -441,7 +520,7 @@ def main(args=None):
     """
     rclpy.init(args=args)
 
-    node = JointCommandPublisher()
+    node = Brain()
 
     signal.signal(signal.SIGINT, shutdown_nodes)
 
