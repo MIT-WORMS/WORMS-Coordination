@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from rclpy.executors import MultiThreadedExecutor
 import numpy as np
+from motor_driver.canmotorlib import CanMotorController
 
 class MotorSet(Node):
     def __init__(self):
