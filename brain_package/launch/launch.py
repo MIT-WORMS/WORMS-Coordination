@@ -38,8 +38,8 @@ def generate_launch_description():
                     ])
         all_nodes.append(node)
         controller_launch = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([os.path.join(
-                get_package_share_directory('controller_package'), 'launch', 'launch.py')])
+            PythonLaunchDescriptionSource([os.path.join(working_file_path[:end_index], "src", REPO_NAME, 
+                                                        'controller_package', 'launch', 'launch.py')])
         )
         all_nodes.append(controller_launch)
 

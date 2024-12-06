@@ -14,7 +14,7 @@ def generate_launch_description():
 
     working_file_path = os.path.dirname(os.path.realpath(__file__))
     end_index = working_file_path.find(WORKSPACE_NAME) + len(WORKSPACE_NAME)
-    script_directory = os.path.join(working_file_path[:end_index], "src", REPO_NAME, PACKAGE_NAME, PACKAGE_NAME)
+    script_directory = os.path.join(working_file_path[:end_index], "src", REPO_NAME, PACKAGE_NAME, 'launch')
     command_filepath = os.path.join(script_directory, "all_worms.csv")
     df = pd.read_csv(command_filepath)
     all_worms = df.columns
