@@ -19,6 +19,7 @@ class MotorSet(Node):
         self.pos1 = 0
         self.pos2 = 0
         self.pos3 = 0
+        self.motor_controller_dict = {}
 
         for motor_id in motor_ids:
             self.motor_controller_dict[motor_id] = CanMotorController(can_device, motor_id, motor_type="AK80_6_V2")
