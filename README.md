@@ -13,12 +13,19 @@ The structures of the specific packages and nodes are shown below.
   - motor_controller
 
 The following topics will be used:
-- state_topic
-- config_topic
-- cmd_topic
-- joint_cmd_topic
-- torque_cmd_topic
-- joint_state_topic
+Brain:
+- action_topic - used to interface the action_node with the readiness checks conducted by the brain
+- joint_states -
+- coordination_topic - used to send completion-level messages (either "in_progress" or "done")
+- joint_commands -
+- readiness_communication_topic -
+- personal_communication_topic -
+- system_communication_topic - 
+
+Coontroller_node:
+- joint_cmd_topic - used to send the position commands for the worm
+- torque_cmd_topic - used to send torque commands to the motors
+- joint_state_topic - used to send the current state of the worm (used for any sort of feedback control)
 
 
 A more in-depth description of each package, node, and topic is given below.
