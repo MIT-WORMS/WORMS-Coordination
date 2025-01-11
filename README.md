@@ -13,6 +13,7 @@ The structures of the specific packages and nodes are shown below.
   - motor_controller
 
 The following topics will be used:
+
 Brain:
 - action_topic - used to interface the action_node with the readiness checks conducted by the brain
 - joint_states -
@@ -28,7 +29,8 @@ Coontroller_node:
 - joint_state_topic - used to send the current state of the worm (used for any sort of feedback control)
 
 
-A more in-depth description of each package, node, and topic is given below.
+
+Packages and Nodes:
 
 brain_package - Responsible for initiating each worm. Includes a personal and system-level readiness check and handling of commands to be sent to a gait manager.
 
