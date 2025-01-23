@@ -35,14 +35,12 @@ class MotorSet(Node):
         for idx, (motor_id, motor_controller) in enumerate(self.motor_controller_dict.items()):
             # Ensure message length matches motor count
             if idx < len(msg.position):
-                Kp = 45
-                Kd = 2
-                pos_command = msg.position[idx]
-                vel_command = msg.velocity[idx]
+                pos_command = 0.0
+                vel_command = 0.0
                 K_ff = msg.effort[idx]
 
                 # Send command and update state
-                pos, vel, curr = motor_controller.send_deg_command(pos_command, vel_command, Kp, Kd, K_ff)
+                pos, vel, curr = motor_controller.send_deg_command(pos_command, vel_command, 0.0, 0.0, K_ff)
                 self.motor_states[motor_id]["position"] = pos
                 self.motor_states[motor_id]["velocity"] = vel
                 self.motor_states[motor_id]["effort"] = curr
