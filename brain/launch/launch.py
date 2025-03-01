@@ -44,15 +44,15 @@ def generate_launch_description():
         )
         all_nodes.append(controller_launch)
 
-        # gait_manager = IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource([os.path.join(
-        #         get_package_share_directory('gait_manager'), 'launch', 'gait_manager_launch.py')])
-        # )
-        # gait_manager_with_namespace = GroupAction(
-        #     actions = [
-        #         PushRosNamespace(worm),
-        #         gait_manager,
-        #     ]
-        # )
-        # all_nodes.append(gait_manager_with_namespace)
+        gait_manager = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([os.path.join(
+                get_package_share_directory('gait_manager'), 'launch', 'gait_manager_launch.py')])
+        )
+        gait_manager_with_namespace = GroupAction(
+            actions = [
+                PushRosNamespace(worm),
+                gait_manager,
+            ]
+        )
+        all_nodes.append(gait_manager_with_namespace)
     return LaunchDescription(all_nodes)

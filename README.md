@@ -5,7 +5,7 @@ Welcome to the WORMS-coordination repository!
 WORMS-coordination is the repository that houses all of the individual worm-specific nodes. 
 
 The structures of the specific packages and nodes are shown below.
-- brain_package
+- brain
   - action_node
   - brain
 - motor_controller
@@ -32,7 +32,7 @@ Motor Controller:
 
 Packages and Nodes:
 
-brain_package - Responsible for initiating each worm. Includes a personal and system-level readiness check and handling of commands to be sent to a gait manager.
+brain - Responsible for initiating each worm. Includes a personal and system-level readiness check and handling of commands to be sent to a gait manager.
 
 motor_controller - Responsible for handling joint_commands as determined by the gait manager or manipulation manager (not a part of this repo). Includes a simple PD controller.
 
