@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -7,18 +8,17 @@ from launch.actions import IncludeLaunchDescription
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.actions import GroupAction
-from launch_ros.actions import PushROSNamespace
+from launch_ros.actions import PushRosNamespace
 
 def generate_launch_description():
-    WORKSPACE_NAME = "WORMS-software-ws"
-    REPO_NAME = "WORMS-coordination"
-    PACKAGE_NAME = "brain_package"
+    REPO_NAME = "WORMS-Coordination"
+    PACKAGE_NAME = "brain"
 
-    working_file_path = os.path.dirname(os.path.realpath(__file__))
-    end_index = working_file_path.find(WORKSPACE_NAME) + len(WORKSPACE_NAME)
-    script_directory = os.path.join(working_file_path[:end_index], "src", REPO_NAME, PACKAGE_NAME, PACKAGE_NAME)
-    command_filepath = os.path.join(script_directory, "all_worms.csv")
-    command_filepath = os.path.join(script_directory, "configuration_table.csv")
+    # ../ros2_ws/install/share/foo -> back out ros2_ws
+    ws_directory = Path(get_package_share_directory('brain')).parent.parent.parent.parent
+    script_directory = ws_directory / "src" / REPO_NAME / PACKAGE_NAME / PACKAGE_NAME
+    command_filepath = script_directory / "all_worms.csv"
+    command_filepath = script_directory / "configuration_table.csv"
     df = pd.read_csv(command_filepath)
     all_worms = df["Head"]
 
@@ -38,20 +38,21 @@ def generate_launch_description():
                     ])
         all_nodes.append(node)
         controller_launch = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([os.path.join(working_file_path[:end_index], "src", REPO_NAME, 
-                                                        'controller_package', 'launch', 'launch.py')])
+            PythonLaunchDescriptionSource([os.path.join(
+                get_package_share_directory('motor_controller'), 'launch', 'motor_launch.py')]),
+                launch_arguments={'namespace': worm}.items()
         )
         all_nodes.append(controller_launch)
 
-        gait_manager = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([os.path.join(
-                get_package_share_directory('gait_manager'), 'launch', 'gait_manager_launch.py')])
-        )
-        gait_manager_with_namespace = GroupAction(
-            actions = [
-                PushROSNamespace(worm),
-                gait_manager,
-            ]
-        )
-        all_nodes.append(gait_manager_with_namespace)
+        # gait_manager = IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource([os.path.join(
+        #         get_package_share_directory('gait_manager'), 'launch', 'gait_manager_launch.py')])
+        # )
+        # gait_manager_with_namespace = GroupAction(
+        #     actions = [
+        #         PushRosNamespace(worm),
+        #         gait_manager,
+        #     ]
+        # )
+        # all_nodes.append(gait_manager_with_namespace)
     return LaunchDescription(all_nodes)

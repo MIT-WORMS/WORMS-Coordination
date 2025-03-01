@@ -10,7 +10,7 @@ def generate_launch_description():
     )
     simulator_arg = DeclareLaunchArgument(
         'simulator',
-        default_value=False,
+        default_value='false',
         description='Set to True to launch this controller with simulator gains'
     )
 
@@ -20,9 +20,9 @@ def generate_launch_description():
             package='motor_controller',
             executable='pd_controller',
             namespace=LaunchConfiguration('namespace'),
-            parameters={
+            parameters=[{
                 'sim': LaunchConfiguration('simulator')
-            }
+            }]
         )
     ]
 
