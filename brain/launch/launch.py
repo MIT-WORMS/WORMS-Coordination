@@ -34,7 +34,8 @@ def generate_launch_description():
                         (f'/{worm}/system_communication_topic', '/system_communication_topic'),
                         (f'/{worm}/readiness_communication_topic', '/readiness_communication_topic'),
                         (f'/{worm}/state_communication_topic', '/state_communication_topic'),
-                        (f'/{worm}/mission_control_command_topic', '/mission_control_command_topic')
+                        (f'/{worm}/mission_control_command_topic', '/mission_control_command_topic'),
+                        (f'/{worm}/local_controller_command_topic', '/local_controller_command_topic')
                     ])
         all_nodes.append(node)
         controller_launch = IncludeLaunchDescription(

@@ -141,17 +141,17 @@ class Brain(Node):
         # self.action_subscriber = self.create_subscription(String, action_topic, self.action_callback, 10)
 
         self.joint_state_subscriber = self.create_subscription(JointState, "joint_states_topic", self.joint_state_callback, 10)
+        self.jointstate = JointState()
         
         self.gait_manager_time_step = 0.1
         self.gait_manager_timer = self.create_timer(self.gait_manager_time_step, self.gait_manager_timer_callback)
         self.state_publisher = self.create_publisher(State, "state_topic", 10)
         self.config_publisher = self.create_publisher(Configuration, "config_topic", 10)
-        self.cmd_publisher = self.create_publisher(Command, "cmd_topic", 10)
+        self.cmd_publisher = self.create_publisher(Command, "local_controller_command_topic", 10)
 
         # interacting upstream/with other worms
         self.mission_control_subscriber = self.create_subscription(Command, 'mission_control_command_topic', self.mission_control_callback, 10)
-        self.joint_state_publisher = self.create_publisher(StateCommunication, "state_communication_topic", 10)
-        self.state_communication_subscriber = self.create_subscription(StateCommunication, "state_communication_topic", self.state_communication_callback, 10)
+        # self.state_communication_subscriber = self.create_subscription(StateCommunication, "state_communication_topic", self.state_communication_callback, 10)
 
 
         self.personal_publisher = self.create_publisher(Personal, 'personal_communication_topic', 10)
@@ -168,7 +168,7 @@ class Brain(Node):
         self.all_system_views = {}
         self.command = None
 
-        self.state_dict = {}
+        # self.state_dict = {}
         self.state_delay_dict = {}
         self.state_dict_initialized = False
         self.publish_config = False
@@ -192,22 +192,24 @@ class Brain(Node):
         """
         Receives JointState message from low-level controller, updates state_dict and forwards msg.
         """
-        self.state_dict[self.worm_id] = msg
-        outgoing_message = StateCommunication()
-        outgoing_message.sender = self.worm_id
-        outgoing_message.state = msg
+        # self.state_dict[self.worm_id] = msg
+        # outgoing_message = StateCommunication()
+        # outgoing_message.sender = self.worm_id
+        # outgoing_message.state = msg
+
+        self.jointstate = msg
 
         self.state_delay_dict[self.worm_id] = time.time()
 
-        self.joint_state_publisher.publish(outgoing_message)
+        # self.joint_state_publisher.publish(outgoing_message)
 
-    def state_communication_callback(self, msg):
-        """
-        Receives state from other worm brains and updates self.state_dict
-        """
-        if msg.sender != self.worm_id:
-            self.state_dict[msg.sender] = msg.state
-            self.state_delay_dict[msg.sender] = time.time()
+    # def state_communication_callback(self, msg):
+    #     """
+    #     Receives state from other worm brains and updates self.state_dict
+    #     """
+    #     if msg.sender != self.worm_id:
+    #         self.state_dict[msg.sender] = msg.state
+    #         self.state_delay_dict[msg.sender] = time.time()
 
     def gait_manager_timer_callback(self):
         """
@@ -220,13 +222,16 @@ class Brain(Node):
         #             del self.state_dict[i]
         #             del self.state_delay_dict[i]
 
-        state_msg = State()
-        state_msg.worms = []
-        state_msg.positions = []
-        for worm, pos in self.state_dict.items():
-            state_msg.worms.append(worm)
-            state_msg.positions.append(pos)
-        self.state_publisher.publish(state_msg)
+        # change this to only take JointState from own worm
+        # state_msg = State()
+        # state_msg.worms = []
+        # state_msg.positions = []
+        # for worm, pos in self.state_dict.items():
+        #     state_msg.worms.append(worm)
+        #     state_msg.positions.append(pos)
+        # self.state_publisher.publish(state_msg)
+
+        self.state_publisher.publish(self.jointstate)
 
         # this needs to be changed
         if len(self.state_dict) == 6:
