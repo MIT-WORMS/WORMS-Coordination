@@ -9,15 +9,22 @@ class PDController(Node):
     joint state as inputs, and outputs the appropriate motor effort commands. 
     """
 
+    # Simulator gains
+    SIM_KP = 3.0
+
+    # Real world gains
+    REAL_KP = 3.0
+
     def __init__(self) -> None:
         """
         Initializes the PD controller node with the gain passed through the rosparam.
         """
         super().__init__('pd_controller_node')
-        self.declare_parameter('kp', 3.0) # TODO: Set default to real world gain
+        self.declare_parameter('sim', False)
 
         # Controller gain
-        self.k_p = self.get_parameter('kp').get_parameter_value().double_value
+        sim = self.get_parameter('sim').get_parameter_value().bool_value
+        self.kp = self.SIM_KP if sim else self.REAL_KP
 
         # Create subscribers (q_current and q_desired)
         self.subscriber = self.create_subscription(JointState, 'state_desired', self.joint_cmd_callback, 10)
@@ -44,7 +51,7 @@ class PDController(Node):
         pos_error = self.current_state.position - command.position
 
         # Calculate the force needed
-        force = [pos_error[0] * self.k_p, pos_error[1] * self.k_p, pos_error[2] * self.k_p]
+        force = [pos_error[0] * self.kp, pos_error[1] * self.kp, pos_error[2] * self.kp]
 
         # Direction of force is the sign of position error
         direction = [1 if e > 0 else -1 if e < 0 else 0 for e in pos_error]

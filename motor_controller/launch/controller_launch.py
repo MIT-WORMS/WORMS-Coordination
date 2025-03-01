@@ -8,18 +8,26 @@ def generate_launch_description():
         'namespace',
         description='Name of the WORM you are launching (required)'
     )
-    namespace = LaunchConfiguration('namespace')
+    simulator_arg = DeclareLaunchArgument(
+        'simulator',
+        default_value=False,
+        description='Set to True to launch this controller with simulator gains'
+    )
 
     # Just the PD controller node in our namespace
     nodes = [
         Node(
             package='motor_controller',
             executable='pd_controller',
-            namespace=namespace
+            namespace=LaunchConfiguration('namespace'),
+            parameters={
+                'sim': LaunchConfiguration('simulator')
+            }
         )
     ]
 
     return LaunchDescription([
         namespace_arg,
+        simulator_arg,
         *nodes
     ])
