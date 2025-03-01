@@ -5,6 +5,8 @@ from std_msgs.msg import String
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.context import Context
 import numpy as np
+from pathlib import Path
+from ament_index_python.packages import get_package_share_directory
 import pandas as pd
 import subprocess
 import platform
@@ -101,15 +103,13 @@ class Brain(Node):
         """
         super().__init__("Brain")
 
-        WORKSPACE_NAME = "WORMS-software-ws"
-        REPO_NAME = "WORMS-coordination"
-        PACKAGE_NAME = "brain_package"
+        REPO_NAME = "WORMS-Coordination"
+        PACKAGE_NAME = "brain"
 
-        working_file_path = os.path.dirname(os.path.realpath(__file__))
-        end_index = working_file_path.find(WORKSPACE_NAME) + len(WORKSPACE_NAME)
-        self.script_directory = os.path.join(working_file_path[:end_index], "src", REPO_NAME, PACKAGE_NAME, PACKAGE_NAME)
+        ws_directory = Path(get_package_share_directory('brain')).parent.parent.parent.parent
+        self.script_directory = ws_directory / "src" / REPO_NAME / PACKAGE_NAME / PACKAGE_NAME
 
-        self.configuration_path = os.path.join(self.script_directory, "configuration_table.csv")
+        self.configuration_path = self.script_directory / "configuration_table.csv"
 
         self.worm_id = self.get_namespace()[1:]
 
@@ -250,7 +250,7 @@ class Brain(Node):
         """
         Returns waypoints from csv file given some action.
         """
-        waypoints_path = os.path.join(self.script_directory, "gait_data", f"{action}.csv")
+        waypoints_path = self.script_directory / "gait_data" / f"{action}.csv"
 
         df = pd.read_csv(waypoints_path)
         return [list(i) for i in df.values]

@@ -5,12 +5,12 @@ from rclpy.executors import MultiThreadedExecutor
 import numpy as np
 from motor_driver.canmotorlib import CanMotorController
 
-class MotorSet(Node):
+class MotorInterface(Node):
     def __init__(self):
-        super().__init__('motor_controller_node')
+        super().__init__('motor_interface_node')
 
-        self.subscriber = self.create_subscription(JointState, 'torque_cmd_topic', self.torque_cmd_callback, 10)
-        self.publisher = self.create_publisher(JointState, 'joint_state_topic', 10)
+        self.subscriber = self.create_subscription(JointState, 'actuation_cmd', self.torque_cmd_callback, 10)
+        self.publisher = self.create_publisher(JointState, 'state', 10)
         
         # Hardcoded to match pican board
         can_device = 'can0'
@@ -67,15 +67,15 @@ class MotorSet(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    motor_controller_node = MotorSet()
+    motor_interface_node = MotorInterface()
 
     try:
-        rclpy.spin(motor_controller_node)
+        rclpy.spin(motor_interface_node)
     except KeyboardInterrupt:
         pass
 
-    motor_controller_node.on_shutdown()
-    motor_controller_node.destroy_node()
+    motor_interface_node.on_shutdown()
+    motor_interface_node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
