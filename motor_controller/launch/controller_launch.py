@@ -14,11 +14,11 @@ def generate_launch_description():
         description='Set to True to launch this controller with simulator gains'
     )
 
-    # Just the PD controller node in our namespace
+    # Just the PID controller node in our namespace
     nodes = [
         Node(
             package='motor_controller',
-            executable='pd_controller',
+            executable='pid_controller',
             namespace=LaunchConfiguration('namespace'),
             parameters=[{
                 'sim': LaunchConfiguration('simulator')

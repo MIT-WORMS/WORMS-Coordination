@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            f"pd_controller = {package_name}.pd_controller:main",
+            f"pid_controller = {package_name}.pid_controller:main",
             f"motor_interface = {package_name}.motor_interface:main"
         ],
     },
